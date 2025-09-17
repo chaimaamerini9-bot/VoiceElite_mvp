@@ -1,3 +1,4 @@
+
 import gradio as gr
 import whisper
 import requests
@@ -6,9 +7,9 @@ import os
 # Load Whisper model locally
 model = whisper.load_model("base")
 
-# Hugging Face Inference API (free tier, need your HF token)
-HF_TOKEN = os.getenv("HF_TOKEN")  # set in Hugging Face "Settings > Secrets"
-API_URL = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-alpha"
+# Hugging Face Inference API
+HF_TOKEN = os.getenv("HF_TOKEN")  # must be set in Hugging Face "Settings > Secrets"
+API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 def query_hf_model(prompt):
@@ -19,6 +20,8 @@ def query_hf_model(prompt):
         return f"⚠️ Error from HF API: {response.text}"
 
 def rewrite_message(original_text, style):
+    if style.lower() == "original":
+        return original_text
     prompt = f"Rewrite this message in a {style} style:\n\n{original_text}\n\nRewritten:"
     return query_hf_model(prompt)
 
@@ -43,4 +46,3 @@ iface = gr.Interface(
 )
 
 iface.launch()
-
