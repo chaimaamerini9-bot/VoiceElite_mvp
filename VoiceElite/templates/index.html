@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VoiceElite</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f9; }
+    h1 { color: #333; }
+    button { padding: 10px 15px; margin: 10px; cursor: pointer; border: none; border-radius: 6px; }
+    #recordBtn { background: #28a745; color: white; }
+    #stopBtn { background: #dc3545; color: white; }
+    #uploadBtn { background: #007bff; color: white; }
+    #rewriteOptions { margin-top: 20px; }
+    #result { background: white; padding: 15px; margin-top: 20px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+  <h1>🎤 VoiceElite</h1>
+  <p>Record or upload a voice message, and transform it into funny, romantic, or professional text.</p>
+
+  <button id="recordBtn">Start Recording</button>
+  <button id="stopBtn" disabled>Stop Recording</button>
+  <input type="file" id="fileInput" accept="audio/*">
+  <button id="uploadBtn">Upload File</button>
+
+  <div id="rewriteOptions">
+    <h3>Choose Style:</h3>
+    <select id="style">
+      <option value="original">Original</option>
+      <option value="funny">Funny</option>
+      <option value="romantic">Romantic</option>
+      <option value="professional">Professional</option>
+    </select>
+    <button onclick="applyRewrite()">Rewrite</button>
+  </div>
+
+  <div id="result">
+    <h3>Results</h3>
+    <p><b>Transcription:</b> <span id="transcription"></span></p>
+    <p><b>Rewritten:</b> <span id="rewritten"></span></p>
+  </div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    const recordBtn = document.getElementById("recordBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const fileInput = document.getElementById("fileInput");
+    const transcriptionEl = document.getElementById("transcription");
+    const rewrittenEl = document.getElementById("rewritten");
+
+    recordBtn.addEventListener("click", async () => {
+      let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+      audioChunks = [];
+      mediaRecorder.addEventListener("dataavailable", event => {
+        audioChunks.push(event.data);
+      });
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+    });
+
+    stopBtn.addEventListener("click", () => {
+      mediaRecorder.stop();
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+      mediaRecorder.addEventListener("stop", async () => {
+        let audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+        let formData = new FormData();
+        formData.append("audio", audioBlob, "recording.webm");
+
+        let res = await fetch("/upload_audio", { method: "POST", body: formData });
+        let data = await res.json();
+        transcriptionEl.textContent = data.transcription || "Error transcribing.";
+      });
+    });
+
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      let file = fileInput.files[0];
+      if (!file) return alert("Please select an audio file.");
+      let formData = new FormData();
+      formData.append("audio", file);
+
+      let res = await fetch("/upload_audio", { method: "POST", body: formData });
+      let data = await res.json();
+      transcriptionEl.textContent = data.transcription || "Error transcribing.";
+    });
+
+    async function applyRewrite() {
+      let text = transcriptionEl.textContent;
+      let style = document.getElementById("style").value;
+      if (!text) return alert("No transcription available.");
+      let res = await fetch("/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, style })
+      });
+      let data = await res.json();
+      rewrittenEl.textContent = data.result || "Error rewriting.";
+    }
+  </script>
+</body>
+</html>
+
+
